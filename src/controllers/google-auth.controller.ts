@@ -33,6 +33,10 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
   try {
     const { code } = req.query;
     
+    console.log('Google callback received');
+    console.log('Code present:', !!code);
+    console.log('Query params:', req.query);
+    
     if (!code || typeof code !== 'string') {
       return res.status(400).json({
         success: false,
@@ -41,7 +45,9 @@ export const handleGoogleCallback = async (req: Request, res: Response) => {
     }
 
     // Verify Google token and get user info
+    console.log('Calling verifyGoogleToken...');
     const googleUser = await googleAuthService.verifyGoogleToken(code);
+    console.log('Google user verified:', googleUser.email);
 
     // Check if user exists
     let user = await prisma.user.findUnique({
