@@ -1,10 +1,16 @@
 import { Request, Response } from 'express';
-import { put } from '@vercel/blob';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
-// Configure multer for memory storage (Vercel doesn't support disk storage)
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-east-1',
+});
+
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'yalashop-uploads';
+
+// Configure multer for memory storage (Lambda doesn't support disk storage)
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -39,17 +45,26 @@ export const uploadImage = async (req: Request, res: Response) => {
 
     const fileExtension = path.extname(req.file.originalname);
     const fileName = `${uuidv4()}${fileExtension}`;
+    const key = `uploads/${fileName}`;
 
-    // Upload to Vercel Blob
-    const blob = await put(fileName, req.file.buffer, {
-      access: 'public',
-      contentType: req.file.mimetype,
+    // Upload to S3
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+      ACL: 'public-read', // Make files publicly readable
     });
+
+    await s3Client.send(command);
+
+    // Return public URL
+    const imageUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
 
     res.status(200).json({
       success: true,
       data: {
-        url: blob.url,
+        url: imageUrl,
         filename: fileName,
       },
     });
@@ -86,4 +101,6 @@ export const handleUploadError = (error: any, req: Request, res: Response, next:
   
   next();
 };
+
+
 

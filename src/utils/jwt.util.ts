@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { User } from '@prisma/client';
 
@@ -17,7 +17,7 @@ export const generateToken = (user: User): string => {
 
   return jwt.sign(payload, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRES_IN,
-  });
+  } as SignOptions);
 };
 
 export const generateRefreshToken = (user: User): string => {
@@ -29,7 +29,7 @@ export const generateRefreshToken = (user: User): string => {
 
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN,
-  });
+  } as SignOptions);
 };
 
 export const verifyToken = (token: string): TokenPayload => {
@@ -41,9 +41,10 @@ export const verifyToken = (token: string): TokenPayload => {
 };
 
 export const generateResetToken = (): string => {
-  return jwt.sign({ type: 'reset' }, env.JWT_SECRET, {
+  const options: SignOptions = {
     expiresIn: '1h', // Password reset tokens expire in 1 hour
-  });
+  };
+  return jwt.sign({ type: 'reset' }, env.JWT_SECRET, options);
 };
 
 export const verifyResetToken = (token: string): boolean => {
