@@ -7,12 +7,21 @@ import bcrypt from 'bcryptjs';
 
 export const getGoogleAuthUrl = async (req: Request, res: Response) => {
   try {
+    // Validate that Google credentials are set
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'Google OAuth credentials are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.',
+      });
+    }
+
     const authUrl = googleAuthService.getGoogleAuthUrl();
     res.json({ 
       success: true, 
       data: { authUrl } 
     });
   } catch (error: any) {
+    console.error('Error generating Google auth URL:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to generate Google auth URL',

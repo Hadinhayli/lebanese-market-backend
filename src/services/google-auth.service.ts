@@ -1,6 +1,13 @@
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
 
+// Validate Google OAuth credentials
+if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+  console.error('Google OAuth credentials are missing!');
+  console.error('GOOGLE_CLIENT_ID:', env.GOOGLE_CLIENT_ID ? 'Set' : 'MISSING');
+  console.error('GOOGLE_CLIENT_SECRET:', env.GOOGLE_CLIENT_SECRET ? 'Set' : 'MISSING');
+}
+
 const client = new OAuth2Client(
   env.GOOGLE_CLIENT_ID,
   env.GOOGLE_CLIENT_SECRET,
