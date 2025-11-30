@@ -41,9 +41,11 @@ export const uploadImage = async (req: Request, res: Response) => {
     const fileName = `${uuidv4()}${fileExtension}`;
 
     // Upload to Vercel Blob
+    // BLOB_READ_WRITE_TOKEN is automatically read from environment variables
     const blob = await put(fileName, req.file.buffer, {
       access: 'public',
       contentType: req.file.mimetype,
+      token: process.env.BLOB_READ_WRITE_TOKEN, // Explicitly pass token (optional, auto-detected if not provided)
     });
 
     res.status(200).json({
