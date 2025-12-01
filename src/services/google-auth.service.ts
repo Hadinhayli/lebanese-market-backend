@@ -1,20 +1,28 @@
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env.js';
 
-// Validate Google OAuth credentials
-if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-  console.error('Google OAuth credentials are missing!');
-  console.error('GOOGLE_CLIENT_ID:', env.GOOGLE_CLIENT_ID ? 'Set' : 'MISSING');
-  console.error('GOOGLE_CLIENT_SECRET:', env.GOOGLE_CLIENT_SECRET ? 'Set' : 'MISSING');
-}
-
-const client = new OAuth2Client(
-  env.GOOGLE_CLIENT_ID,
-  env.GOOGLE_CLIENT_SECRET,
-  env.GOOGLE_REDIRECT_URI
-);
+// Create OAuth2Client lazily to ensure environment variables are loaded
+const getClient = (): OAuth2Client => {
+  // Use process.env directly to ensure we get the latest values (important for Vercel)
+  const clientId = process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || env.GOOGLE_REDIRECT_URI;
+  
+  console.log('Creating OAuth2Client with:', {
+    clientId: clientId ? `${clientId.substring(0, 20)}...` : 'MISSING',
+    clientSecret: clientSecret ? 'Set (hidden)' : 'MISSING',
+    redirectUri,
+  });
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('Google OAuth credentials are not configured. GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set.');
+  }
+  
+  return new OAuth2Client(clientId, clientSecret, redirectUri);
+};
 
 export const getGoogleAuthUrl = () => {
+  const client = getClient();
   return client.generateAuthUrl({
     access_type: 'offline',
     scope: ['profile', 'email'],
@@ -24,15 +32,17 @@ export const getGoogleAuthUrl = () => {
 
 export const verifyGoogleToken = async (code: string) => {
   try {
-    // Validate credentials are set
-    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-      throw new Error('Google OAuth credentials are not configured. GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set.');
-    }
+    // Get fresh client instance with current environment variables
+    const client = getClient();
+    
+    // Use process.env directly to ensure we get the latest values
+    const clientId = process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || env.GOOGLE_REDIRECT_URI;
     
     console.log('Exchanging authorization code for tokens...');
-    console.log('Using redirect_uri:', env.GOOGLE_REDIRECT_URI);
-    console.log('Client ID:', env.GOOGLE_CLIENT_ID ? `${env.GOOGLE_CLIENT_ID.substring(0, 20)}...` : 'MISSING');
-    console.log('Client Secret:', env.GOOGLE_CLIENT_SECRET ? 'Set (hidden)' : 'MISSING');
+    console.log('Using redirect_uri:', redirectUri);
+    console.log('Client ID:', clientId ? `${clientId.substring(0, 20)}...` : 'MISSING');
+    console.log('Client Secret:', (process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET) ? 'Set (hidden)' : 'MISSING');
     
     const { tokens } = await client.getToken(code);
     
@@ -42,7 +52,7 @@ export const verifyGoogleToken = async (code: string) => {
     
     const ticket = await client.verifyIdToken({
       idToken: tokens.id_token,
-      audience: env.GOOGLE_CLIENT_ID,
+      audience: clientId,
     });
     
     const payload = ticket.getPayload();
@@ -69,7 +79,8 @@ export const verifyGoogleToken = async (code: string) => {
       throw new Error('Invalid Google OAuth client credentials. Please verify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.');
     }
     if (error.message?.includes('redirect_uri_mismatch')) {
-      throw new Error(`Redirect URI mismatch. Expected: ${env.GOOGLE_REDIRECT_URI}. Please verify this matches your Google Cloud Console settings.`);
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI || env.GOOGLE_REDIRECT_URI;
+      throw new Error(`Redirect URI mismatch. Expected: ${redirectUri}. Please verify this matches your Google Cloud Console settings.`);
     }
     
     throw error;
